@@ -1,5 +1,6 @@
 import * as _ from 'underscore';
 import Vector from 'vector-object';
+import { Matrix, SingularValueDecomposition } from 'ml-matrix';
 import {
   Document,
   RecommenderOptions,
@@ -24,7 +25,9 @@ const defaultOptions: RecommenderOptions = {
   maxSimilarDocuments: Number.MAX_SAFE_INTEGER,
   minScore: 0,
   debug: false,
+  algorithm: 'tfidf',
   language: 'en',
+  lsaDimensions: 12,
   tokenFilterOptions: {
     removeDuplicates: true,
     removeStopwords: true,
@@ -92,9 +95,19 @@ class ContentBasedRecommender {
       throw new Error('The option minScore should be a number between 0 and 1');
     }
 
+    if ((options.algorithm !== undefined) &&
+      (!_.isString(options.algorithm) || !['tfidf', 'lsa'].includes(options.algorithm))) {
+      throw new Error('The option algorithm should be either "tfidf" or "lsa"');
+    }
+
     if ((options.language !== undefined) &&
       (!_.isString(options.language) || !['en', 'ja'].includes(options.language))) {
       throw new Error('The option language should be either "en" or "ja"');
+    }
+
+    if ((options.lsaDimensions !== undefined) &&
+      (!Number.isInteger(options.lsaDimensions) || options.lsaDimensions <= 0)) {
+      throw new Error('The option lsaDimensions should be integer and greater than 0');
     }
 
     const prevLanguage = this.options?.language;
@@ -145,8 +158,11 @@ class ContentBasedRecommender {
     const preprocessTargetDocs = await this._preprocessDocuments(targetDocuments, this.options);
 
     // ステップ2 - 文書ベクトルの作成
-    const docVectors = this._produceWordVectors(preprocessDocs, this.options);
-    const targetDocVectors = this._produceWordVectors(preprocessTargetDocs, this.options);
+    const { documentVectors: docVectors, targetDocumentVectors: targetDocVectors } = this._produceBidirectionalWordVectors(
+      preprocessDocs,
+      preprocessTargetDocs,
+      this.options
+    );
 
     // ステップ3 - 類似度の計算
     this.data = this._calculateSimilaritiesBetweenTwoVectors(docVectors, targetDocVectors, this.options);
@@ -296,6 +312,49 @@ class ContentBasedRecommender {
    * @returns 文書ベクトル配列
    */
   private _produceWordVectors(processedDocuments: ProcessedDocument[], options: RecommenderOptions): DocumentVector[] {
+    if (options.algorithm === 'lsa') {
+      return this._produceLsaWordVectors(processedDocuments, options);
+    }
+
+    return this._produceTfIdfWordVectors(processedDocuments, options);
+  }
+
+  /**
+   * 双方向学習向けに文書ベクトルを生成する
+   * @param processedDocuments メイン文書配列
+   * @param targetProcessedDocuments ターゲット文書配列
+   * @param options 設定オプション
+   * @returns 生成済みベクトル
+   */
+  private _produceBidirectionalWordVectors(
+    processedDocuments: ProcessedDocument[],
+    targetProcessedDocuments: ProcessedDocument[],
+    options: RecommenderOptions
+  ): { documentVectors: DocumentVector[]; targetDocumentVectors: DocumentVector[] } {
+    if (options.algorithm !== 'lsa') {
+      return {
+        documentVectors: this._produceTfIdfWordVectors(processedDocuments, options),
+        targetDocumentVectors: this._produceTfIdfWordVectors(targetProcessedDocuments, options)
+      };
+    }
+
+    const allDocuments = processedDocuments.concat(targetProcessedDocuments);
+    const allVectors = this._produceLsaWordVectors(allDocuments, options);
+    const splitIndex = processedDocuments.length;
+
+    return {
+      documentVectors: allVectors.slice(0, splitIndex),
+      targetDocumentVectors: allVectors.slice(splitIndex)
+    };
+  }
+
+  /**
+   * TF-IDFベースの文書ベクトルを生成する
+   * @param processedDocuments 前処理済み文書配列
+   * @param options 設定オプション
+   * @returns 文書ベクトル配列
+   */
+  private _produceTfIdfWordVectors(processedDocuments: ProcessedDocument[], options: RecommenderOptions): DocumentVector[] {
     // TF-IDFの処理
     const tfidf = new TfIdf();
 
@@ -333,6 +392,111 @@ class ContentBasedRecommender {
   }
 
   /**
+   * LSAベースの文書ベクトルを生成する
+   * @param processedDocuments 前処理済み文書配列
+   * @param options 設定オプション
+   * @returns 文書ベクトル配列
+   */
+  private _produceLsaWordVectors(processedDocuments: ProcessedDocument[], options: RecommenderOptions): DocumentVector[] {
+    if (processedDocuments.length === 0) {
+      return [];
+    }
+
+    const { matrix } = this._buildTfIdfMatrix(processedDocuments);
+    if (matrix.columns === 0) {
+      return this._createZeroVectors(processedDocuments);
+    }
+
+    const shouldTranspose = matrix.columns > matrix.rows;
+    const matrixForSvd = shouldTranspose ? matrix.transpose() : matrix;
+    const svd = new SingularValueDecomposition(matrixForSvd, {
+      autoTranspose: false,
+    });
+    const singularValues = svd.diagonal;
+    if (singularValues.length === 0) {
+      return this._createZeroVectors(processedDocuments);
+    }
+
+    const latentDimensions = Math.min(options.lsaDimensions!, singularValues.length);
+    const documentBasis = shouldTranspose
+      ? svd.rightSingularVectors.subMatrix(0, processedDocuments.length - 1, 0, latentDimensions - 1)
+      : svd.leftSingularVectors.subMatrix(0, processedDocuments.length - 1, 0, latentDimensions - 1);
+    const truncatedDiagonal = Matrix.diag(singularValues.slice(0, latentDimensions));
+    const reducedMatrix = documentBasis.mmul(truncatedDiagonal);
+
+    return processedDocuments.map((processedDocument, index) => {
+      const hash: Record<string, number> = {};
+
+      for (let dimensionIndex = 0; dimensionIndex < latentDimensions; dimensionIndex += 1) {
+        hash[`dim_${dimensionIndex}`] = reducedMatrix.get(index, dimensionIndex);
+      }
+
+      return {
+        id: processedDocument.id,
+        vector: new Vector(hash),
+      };
+    });
+  }
+
+  /**
+   * LSA用のTF-IDF行列を構築する
+   * @param processedDocuments 前処理済み文書配列
+   * @returns TF-IDF行列
+   */
+  private _buildTfIdfMatrix(processedDocuments: ProcessedDocument[]): { matrix: Matrix; terms: string[] } {
+    const termSet = new Set<string>();
+    const termDocumentFrequency = new Map<string, number>();
+
+    processedDocuments.forEach((processedDocument) => {
+      const uniqueTerms = new Set(processedDocument.tokens);
+
+      processedDocument.tokens.forEach((token) => {
+        termSet.add(token);
+      });
+
+      uniqueTerms.forEach((term) => {
+        termDocumentFrequency.set(term, (termDocumentFrequency.get(term) ?? 0) + 1);
+      });
+    });
+
+    const terms = Array.from(termSet).sort();
+    const matrix = Matrix.zeros(processedDocuments.length, terms.length);
+    const totalDocuments = processedDocuments.length;
+
+    processedDocuments.forEach((processedDocument, rowIndex) => {
+      const termFrequency = processedDocument.tokens.reduce((acc: Record<string, number>, token) => {
+        acc[token] = (acc[token] ?? 0) + 1;
+        return acc;
+      }, {});
+
+      terms.forEach((term, columnIndex) => {
+        const tf = termFrequency[term] ?? 0;
+        if (tf === 0) {
+          return;
+        }
+
+        const documentFrequency = termDocumentFrequency.get(term) ?? 0;
+        const idf = Math.log((1 + totalDocuments) / (1 + documentFrequency)) + 1;
+        matrix.set(rowIndex, columnIndex, tf * idf);
+      });
+    });
+
+    return { matrix, terms };
+  }
+
+  /**
+   * ゼロベクトルの文書ベクトル配列を生成する
+   * @param processedDocuments 前処理済み文書配列
+   * @returns 文書ベクトル配列
+   */
+  private _createZeroVectors(processedDocuments: ProcessedDocument[]): DocumentVector[] {
+    return processedDocuments.map((processedDocument) => ({
+      id: processedDocument.id,
+      vector: new Vector({}),
+    }));
+  }
+
+  /**
    * 2つのベクトルセット間の類似度を計算する（双方向学習用）
    * @param documentVectors メイン文書のベクトル配列
    * @param targetDocumentVectors ターゲット文書のベクトル配列
@@ -360,7 +524,7 @@ class ContentBasedRecommender {
         const vi = documentVectorA.vector;
         const idj = targetDocumentVectorB.id;
         const vj = targetDocumentVectorB.vector;
-        const similarity = vi.getCosineSimilarity(vj);
+        const similarity = this._getCosineSimilarity(vi, vj);
 
         if (similarity > options.minScore!) {
           data[idi].push({
@@ -412,7 +576,7 @@ class ContentBasedRecommender {
         const documentVectorB = documentVectors[j];
         const idj = documentVectorB.id;
         const vj = documentVectorB.vector;
-        const similarity = vi.getCosineSimilarity(vj);
+        const similarity = this._getCosineSimilarity(vi, vj);
 
         if (similarity > options.minScore!) {
           data[idi].push({
@@ -431,6 +595,17 @@ class ContentBasedRecommender {
     this.orderDocuments(data, options);
 
     return data;
+  }
+
+  /**
+   * コサイン類似度を安全に取得する
+   * @param vectorA ベクトルA
+   * @param vectorB ベクトルB
+   * @returns コサイン類似度
+   */
+  private _getCosineSimilarity(vectorA: Vector, vectorB: Vector): number {
+    const similarity = vectorA.getCosineSimilarity(vectorB);
+    return Number.isFinite(similarity) ? similarity : 0;
   }
 }
 

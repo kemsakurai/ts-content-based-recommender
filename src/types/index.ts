@@ -15,6 +15,11 @@ export interface Document {
 }
 
 /**
+ * 推薦アルゴリズムの種別
+ */
+export type RecommenderAlgorithm = 'tfidf' | 'lsa';
+
+/**
  * ContentBasedRecommenderの設定オプション
  */
 export interface RecommenderOptions {
@@ -26,8 +31,12 @@ export interface RecommenderOptions {
   minScore?: number;
   /** デバッグモードの有効化 */
   debug?: boolean;
+  /** 推薦アルゴリズム */
+  algorithm?: RecommenderAlgorithm;
   /** 使用する言語（デフォルト: 'en'、日本語: 'ja'） */
   language?: 'en' | 'ja';
+  /** LSAで利用する潜在次元数 */
+  lsaDimensions?: number;
   /** トークンフィルターのオプション */
   tokenFilterOptions?: TokenFilterOptions;
 }
