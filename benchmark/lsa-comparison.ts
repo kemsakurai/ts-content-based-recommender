@@ -233,13 +233,16 @@ function getCliOption(flag: string): string | undefined {
  * @returns Promise<void>
  */
 async function runAllBenchmarks(): Promise<void> {
+  // embedding シナリオはローカルでモデルがキャッシュ済みの場合のみ実行する
   const scenarios: Array<{ dataset: keyof typeof datasets; algorithm: RecommenderAlgorithm }> = [
     { dataset: 'evaluation-en', algorithm: 'tfidf' },
     { dataset: 'evaluation-en', algorithm: 'lsa' },
     { dataset: 'evaluation-en', algorithm: 'bm25' },
+    { dataset: 'evaluation-en', algorithm: 'embedding' },
     { dataset: 'evaluation-ja-mixed', algorithm: 'tfidf' },
     { dataset: 'evaluation-ja-mixed', algorithm: 'lsa' },
     { dataset: 'evaluation-ja-mixed', algorithm: 'bm25' },
+    { dataset: 'evaluation-ja-mixed', algorithm: 'embedding' },
   ];
   const results: BenchmarkResult[] = [];
 

@@ -1,13 +1,17 @@
 import { RecommenderOptions } from '../../types/index.js';
 import { Bm25SimilarityService } from '../services/Bm25SimilarityService.js';
 import { DocumentPreprocessor } from '../services/DocumentPreprocessor.js';
+import { SimilarityResultBuilder } from '../services/SimilarityResultBuilder.js';
 import { DocumentVectorFactory } from './DocumentVectorFactory.js';
 import { SimilarityCalculator } from '../services/SimilarityCalculator.js';
-import { SimilarityResultBuilder } from '../services/SimilarityResultBuilder.js';
 import {
   Bm25TrainingStrategy,
   bm25TrainingStrategyMetadata,
 } from '../strategies/Bm25TrainingStrategy.js';
+import {
+  EmbeddingTrainingStrategy,
+  embeddingTrainingStrategyMetadata,
+} from '../strategies/EmbeddingTrainingStrategy.js';
 import {
   LsaTrainingStrategy,
   lsaTrainingStrategyMetadata,
@@ -21,7 +25,7 @@ import {
   tfidfTrainingStrategyMetadata,
 } from '../strategies/TfidfTrainingStrategy.js';
 
-type SupportedAlgorithm = 'tfidf' | 'lsa' | 'bm25';
+type SupportedAlgorithm = 'tfidf' | 'lsa' | 'bm25' | 'embedding';
 
 /**
  * ベクトル系 strategy の依存セット
@@ -46,12 +50,23 @@ interface Bm25TrainingDependencies {
 }
 
 /**
+ * 埋め込み strategy の依存セット
+ */
+interface EmbeddingTrainingDependencies {
+  /** 文書前処理サービス */
+  documentPreprocessor: DocumentPreprocessor;
+  /** 類似度結果構築サービス */
+  similarityResultBuilder: SimilarityResultBuilder;
+}
+
+/**
  * 学習戦略メタデータマップ
  */
 const strategyMetadataMap: Record<SupportedAlgorithm, RecommenderTrainingStrategyMetadata> = {
   tfidf: tfidfTrainingStrategyMetadata,
   lsa: lsaTrainingStrategyMetadata,
   bm25: bm25TrainingStrategyMetadata,
+  embedding: embeddingTrainingStrategyMetadata,
 };
 
 /**
@@ -71,6 +86,8 @@ export class TrainingStrategyFactory {
         return this.createLsaStrategy();
       case 'bm25':
         return this.createBm25Strategy();
+      case 'embedding':
+        return this.createEmbeddingStrategy();
       case 'tfidf':
       default:
         return this.createTfidfStrategy();
@@ -131,6 +148,19 @@ export class TrainingStrategyFactory {
   }
 
   /**
+   * 埋め込み学習戦略を生成する
+   * @returns 埋め込み学習戦略
+   */
+  private static createEmbeddingStrategy(): RecommenderTrainingStrategy {
+    const dependencies = this.createEmbeddingTrainingDependencies();
+
+    return new EmbeddingTrainingStrategy(
+      dependencies.documentPreprocessor,
+      dependencies.similarityResultBuilder
+    );
+  }
+
+  /**
    * ベクトル系 strategy 用の依存を生成する
    * @returns ベクトル系依存セット
    */
@@ -154,6 +184,17 @@ export class TrainingStrategyFactory {
     return {
       documentPreprocessor: new DocumentPreprocessor(),
       bm25SimilarityService: new Bm25SimilarityService(similarityResultBuilder),
+    };
+  }
+
+  /**
+   * 埋め込み strategy 用の依存を生成する
+   * @returns 埋め込み依存セット
+   */
+  private static createEmbeddingTrainingDependencies(): EmbeddingTrainingDependencies {
+    return {
+      documentPreprocessor: new DocumentPreprocessor(),
+      similarityResultBuilder: new SimilarityResultBuilder(),
     };
   }
 }

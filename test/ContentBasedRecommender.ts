@@ -59,7 +59,7 @@ describe('ContentBasedRecommender', () => {
           algorithm: 'invalid' as any,
         });
         recommender.train(sampleDocuments);
-      }).to.throw('The option algorithm should be either "tfidf", "lsa" or "bm25"');
+      }).to.throw('The option algorithm should be either "tfidf", "lsa", "bm25" or "embedding"');
     });
 
     it('should only accept lsaDimensions greater than 0', () => {

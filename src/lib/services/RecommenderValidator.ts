@@ -29,8 +29,13 @@ export class RecommenderValidator {
     }
 
     if ((options.algorithm !== undefined) &&
-      (typeof options.algorithm !== 'string' || !['tfidf', 'lsa', 'bm25'].includes(options.algorithm))) {
-      throw new Error('The option algorithm should be either "tfidf", "lsa" or "bm25"');
+      (typeof options.algorithm !== 'string' || !['tfidf', 'lsa', 'bm25', 'embedding'].includes(options.algorithm))) {
+      throw new Error('The option algorithm should be either "tfidf", "lsa", "bm25" or "embedding"');
+    }
+
+    if ((options.embeddingModel !== undefined) &&
+      typeof options.embeddingModel !== 'string') {
+      throw new Error('The option embeddingModel should be a string');
     }
 
     if ((options.language !== undefined) &&

@@ -19,7 +19,7 @@ export interface Document {
 /**
  * 推薦アルゴリズムの種別
  */
-export type RecommenderAlgorithm = 'tfidf' | 'lsa' | 'bm25';
+export type RecommenderAlgorithm = 'tfidf' | 'lsa' | 'bm25' | 'embedding';
 
 /**
  * ContentBasedRecommenderの設定オプション
@@ -39,6 +39,8 @@ export interface RecommenderOptions {
   language?: 'en' | 'ja';
   /** LSAで利用する潜在次元数 */
   lsaDimensions?: number;
+  /** 埋め込みモデル名（algorithm='embedding' のとき使用、デフォルト: 'Xenova/multilingual-e5-small'） */
+  embeddingModel?: string;
   /** トークンフィルターのオプション */
   tokenFilterOptions?: TokenFilterOptions;
 }

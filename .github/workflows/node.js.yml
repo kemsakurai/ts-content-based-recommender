@@ -41,6 +41,9 @@ jobs:
 
     - name: Run tests
       run: npm test
+      env:
+        # 埋め込みテストはモデルのダウンロードが発生するため CI ではスキップする
+        SKIP_EMBEDDING_TESTS: 'true'
 
   # 日本語形態素解析器（kuromoji）の動作確認
   japanese-test:
@@ -65,6 +68,9 @@ jobs:
 
     - name: Run Japanese language tests
       run: npm test -- --grep "Japanese"
+      env:
+        # 埋め込みテストはモデルのダウンロードが発生するため CI ではスキップする
+        SKIP_EMBEDDING_TESTS: 'true'
 
     - name: Run example with Japanese documents
       run: npm run example
