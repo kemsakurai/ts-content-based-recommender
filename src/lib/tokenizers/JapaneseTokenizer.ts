@@ -16,28 +16,10 @@ export class JapaneseTokenizer implements ITokenizer {
    * @returns トークン配列のPromise
    */
   public async tokenize(text: string): Promise<string[]> {
-    if (!this.kuromojiTokenizer) {
-      await this._initializeKuromojiTokenizer();
-    }
+    const kuromojiTokens = await this.getDetailedTokens(text);
 
-    if (!this.kuromojiTokenizer) {
-      throw new Error('Failed to initialize kuromoji tokenizer');
-    }
-
-    // HTMLタグの除去
-    const cleanText = striptags(text, [], ' ').trim();
-
-    // 空文字列の場合は空配列を返す
-    if (!cleanText) {
-      return [];
-    }
-
-    // 形態素解析を実行
-    const tokens = this.kuromojiTokenizer.tokenize(cleanText);
-
-    // トークン情報を文字列として返す
-    return tokens.map(token => {
-      // 基本形が'*'の場合は表層形を使用
+    // 基本形が'*'の場合は表層形を使用
+    return kuromojiTokens.map((token) => {
       const baseForm = token.basic_form;
       return (baseForm && baseForm !== '*') ? baseForm : token.surface_form;
     });

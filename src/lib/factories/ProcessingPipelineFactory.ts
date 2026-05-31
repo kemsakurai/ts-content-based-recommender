@@ -35,16 +35,18 @@ export class ProcessingPipelineFactory {
     language: 'en' | 'ja' = 'en',
     filterOptions: TokenFilterOptions = {}
   ): ProcessingPipeline {
-    if (language === 'ja') {
-      return {
-        tokenizer: new JapaneseTokenizer(),
-        filter: new JapaneseTokenFilter(filterOptions)
-      };
-    } else {
-      return {
-        tokenizer: new EnglishTokenizer(),
-        filter: new EnglishTokenFilter(filterOptions)
-      };
+    switch (language) {
+      case 'ja':
+        return {
+          tokenizer: this.createTokenizer('ja'),
+          filter: new JapaneseTokenFilter(filterOptions),
+        };
+      case 'en':
+      default:
+        return {
+          tokenizer: this.createTokenizer('en'),
+          filter: new EnglishTokenFilter(filterOptions),
+        };
     }
   }
 }

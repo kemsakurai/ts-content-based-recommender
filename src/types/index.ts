@@ -8,6 +8,8 @@
 export interface Document {
   /** 文書の一意識別子 */
   id: string;
+  /** 文書のタイトル */
+  title?: string;
   /** 文書の内容 */
   content: string;
   /** その他の任意プロパティ */
@@ -17,7 +19,7 @@ export interface Document {
 /**
  * 推薦アルゴリズムの種別
  */
-export type RecommenderAlgorithm = 'tfidf' | 'lsa';
+export type RecommenderAlgorithm = 'tfidf' | 'lsa' | 'bm25';
 
 /**
  * ContentBasedRecommenderの設定オプション
@@ -85,6 +87,8 @@ export interface ProcessedDocument {
   id: string;
   /** トークン化された単語の配列 */
   tokens: string[];
+  /** トークン化されたタイトルの配列 */
+  titleTokens?: string[];
   /** 元の文書データ */
   originalDocument: Document;
 }

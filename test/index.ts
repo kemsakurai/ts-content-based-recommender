@@ -10,6 +10,7 @@ import './factories/ProcessingPipelineFactory.js';
 
 // 統合テスト
 import './ContentBasedRecommenderImproved.js';
+import './BM25Recommender.js';
 import './pipeline-integration-test.js';
 
 // 既存のテスト（後方互換性）

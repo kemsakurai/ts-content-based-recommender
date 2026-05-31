@@ -52,6 +52,17 @@ describe('ContentBasedRecommender - 改良版', () => {
         });
       }).to.not.throw();
     });
+
+    it('BM25ではremoveDuplicatesの既定値がfalseになること', () => {
+      const recommender = new ContentBasedRecommender({
+        algorithm: 'bm25',
+        language: 'ja'
+      });
+
+      const exportedModel = recommender.export();
+
+      expect(exportedModel.options?.tokenFilterOptions?.removeDuplicates).to.equal(false);
+    });
   });
 
   describe('英語文書の処理', () => {
