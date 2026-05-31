@@ -96,7 +96,7 @@
     "eslint": "^8.57.1",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-plugin-import": "^2.32.0",
-    "mocha": "^11.3.0",
+    "mocha": "^10.8.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
   },
