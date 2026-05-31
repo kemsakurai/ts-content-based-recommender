@@ -25,7 +25,7 @@ export class EnglishTokenFilter implements IEnglishTokenFilter {
       removeStopwords: options.removeStopwords ?? true,
       customStopWords: options.customStopWords ?? [],
       minTokenLength: options.minTokenLength ?? 1,
-      allowedPos: options.allowedPos ?? ['名詞', '動詞', '形容詞'] // 日本語用なので英語では使用しない
+      allowedPos: options.allowedPos ?? [] // 英語フィルターでは使用しない
     };
   }
 

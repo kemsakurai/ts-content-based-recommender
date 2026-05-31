@@ -31,6 +31,7 @@ This package is forked from [stanleyfok/content-based-recommender](https://githu
 * **Factory Pattern**: Introduced `ProcessingPipelineFactory` for easy component creation
 * **Enhanced Testing**: Moved all tests to `test/` directory with improved coverage
 * **Improved Japanese Support**: Advanced morphological analysis with part-of-speech filtering
+* **BM25 Support**: Added MiniSearch-based BM25 ranking with English and Japanese preprocessing
 * **Better TypeScript Support**: Comprehensive type definitions for all components
 
 #### 1.5.0
@@ -84,8 +85,8 @@ After the recommender is trained by an array of documents, it can tell the list 
 
 The training process involves 3 main steps:
 * content pre-processing, such as html tag stripping, [stopwords](http://xpo6.com/list-of-english-stop-words/) removal and [stemming](http://9ol.es/porter_js_demo.html)
-* document vectors formation using [tf-idf](https://lizrush.gitbooks.io/algorithms-for-webdevs-ebook/content/chapters/tf-idf.html)
-* find the [cosine similarity](https://en.wikipedia.org/wiki/Cosine_similarity) scores between all document vectors
+* ranking document features using [tf-idf](https://lizrush.gitbooks.io/algorithms-for-webdevs-ebook/content/chapters/tf-idf.html), LSA, or BM25
+* calculate related document scores from vectors or BM25 search results depending on the selected algorithm
 
 Special thanks to the library [natural](https://www.npmjs.com/package/natural) helps a lot by providing a lot of NLP functionalities, such as tf-idf and word stemming.
 
@@ -149,6 +150,47 @@ console.log(similarDocuments);
   ]
 */
 ```
+
+### BM25 ranking
+
+Use `algorithm: 'bm25'` when you want keyword-heavy ranking with MiniSearch.
+If a document includes `title`, BM25 indexes both `title` and `content`.
+Japanese documents are tokenized with the existing kuromoji pipeline before indexing.
+
+```ts
+import ContentBasedRecommender from 'ts-content-based-recommender'
+
+const recommender = new ContentBasedRecommender({
+  algorithm: 'bm25',
+  language: 'ja',
+  maxSimilarDocuments: 5,
+  minScore: 0,
+});
+
+const documents = [
+  {
+    id: 'post-1',
+    title: '日本語検索設計',
+    content: 'MiniSearch で日本語 BM25 検索を扱うときの設計ポイント',
+  },
+  {
+    id: 'post-2',
+    title: '検索インデックス最適化',
+    content: 'BM25 スコアと日本語トークン化の基礎を整理する',
+  },
+  {
+    id: 'post-3',
+    title: '決済基盤運用',
+    content: '障害対応フローと監視設計のまとめ',
+  },
+];
+
+await recommender.train(documents);
+
+console.log(recommender.getSimilarDocuments('post-1'));
+```
+
+BM25 scores are raw ranking scores and are not normalized to the 0-1 range.
 
 ### Multi collection
 
@@ -257,6 +299,35 @@ Is it possible to use javascript for machine learning? related tags: [ 'machine 
 */
 
 ```
+
+## Benchmark
+
+Run all benchmark scenarios:
+
+```bash
+npm run benchmark
+```
+
+Run BM25 only for the mixed Japanese dataset:
+
+```bash
+npm run benchmark -- --dataset evaluation-ja-mixed --algorithm bm25
+```
+
+### Latest Benchmark Snapshot
+
+The following results were measured locally on 2026-05-31 after reducing Japanese preprocessing memory usage by removing duplicate morphological analysis and keeping the memory-efficient local preprocessing path. Values depend on machine, Node.js runtime, and current dependency versions.
+
+| Dataset | Algorithm | Train ms | Warm avg ms | Warm p95 ms | RSS delta MB | Precision@5 | Recall@5 | Avg tag overlap@5 |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| evaluation-en | tfidf | 25.691 | 0.000035 | 0.000051 | 16.703 | 0.123 | 0.123 | 0.151 |
+| evaluation-en | lsa | 86.285 | 0.000020 | 0.000044 | 40.125 | 0.120 | 0.120 | 0.120 |
+| evaluation-en | bm25 | 23.851 | 0.000016 | 0.000034 | 15.547 | 0.127 | 0.127 | 0.154 |
+| evaluation-ja-mixed | tfidf | 170.781 | 0.000019 | 0.000032 | 356.578 | 0.050 | 0.050 | 0.050 |
+| evaluation-ja-mixed | lsa | 209.024 | 0.000035 | 0.000052 | 396.422 | 0.070 | 0.070 | 0.070 |
+| evaluation-ja-mixed | bm25 | 182.513 | 0.000015 | 0.000034 | 353.156 | 0.060 | 0.060 | 0.061 |
+
+For this snapshot, BM25 is the strongest option on the English dataset, while LSA has the best accuracy on the mixed Japanese dataset. BM25 remains the fastest inference path across both datasets.
 
 ### Japanese Language Example
 

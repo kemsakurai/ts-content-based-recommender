@@ -236,8 +236,10 @@ async function runAllBenchmarks(): Promise<void> {
   const scenarios: Array<{ dataset: keyof typeof datasets; algorithm: RecommenderAlgorithm }> = [
     { dataset: 'evaluation-en', algorithm: 'tfidf' },
     { dataset: 'evaluation-en', algorithm: 'lsa' },
+    { dataset: 'evaluation-en', algorithm: 'bm25' },
     { dataset: 'evaluation-ja-mixed', algorithm: 'tfidf' },
     { dataset: 'evaluation-ja-mixed', algorithm: 'lsa' },
+    { dataset: 'evaluation-ja-mixed', algorithm: 'bm25' },
   ];
   const results: BenchmarkResult[] = [];
 
@@ -259,7 +261,7 @@ async function runAllBenchmarks(): Promise<void> {
     results.push(JSON.parse(jsonLine) as BenchmarkResult);
   }
 
-  console.log('LSA benchmark results');
+  console.log('Recommender benchmark results');
   console.table(results.map((result) => ({
     dataset: result.dataset,
     algorithm: result.algorithm,
