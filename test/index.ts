@@ -15,3 +15,6 @@ import './pipeline-integration-test.js';
 
 // 既存のテスト（後方互換性）
 import './ContentBasedRecommender.js';
+
+// 埋め込みベースの推薦テスト（SKIP_EMBEDDING_TESTS=true でスキップ）
+import './EmbeddingRecommender.js';
