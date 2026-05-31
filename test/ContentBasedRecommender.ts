@@ -45,6 +45,24 @@ describe('ContentBasedRecommender', () => {
         recommender.train(sampleDocuments);
       }).to.throw('The option minScore should be a number between 0 and 1');
     });
+
+    it('should only accept algorithm as tfidf or lsa', () => {
+      expect(() => {
+        const recommender = new ContentBasedRecommender({
+          algorithm: 'bm25' as any,
+        });
+        recommender.train(sampleDocuments);
+      }).to.throw('The option algorithm should be either "tfidf" or "lsa"');
+    });
+
+    it('should only accept lsaDimensions greater than 0', () => {
+      expect(() => {
+        const recommender = new ContentBasedRecommender({
+          lsaDimensions: 0,
+        });
+        recommender.train(sampleDocuments);
+      }).to.throw('The option lsaDimensions should be integer and greater than 0');
+    });
   });
 
   describe('documents validation', () => {
