@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.6.3] - 2026-06-01
+
+### Added
+- **Embedding-based recommender** using `@xenova/transformers` (Wasm) for semantic similarity (#17)
+- **LSA (Latent Semantic Analysis) recommender** for topic-based similarity (#20)
+- **BM25 recommender** as an alternative to TF-IDF for improved relevance scoring
+
+### Changed
+- **Refactored ContentBasedRecommender** into service/strategy/factory architecture (#21)
+- **Improved code organization** with dedicated factories, filters, services, strategies, and tokenizers
+
 ## [1.6.0] - 2025-06-30
 
 ### Added

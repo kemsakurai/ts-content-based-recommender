@@ -1,6 +1,6 @@
 {
   "name": "ts-content-based-recommender",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "description": "A TypeScript-based content-based recommender with multilingual support (Japanese & English). Forked from content-based-recommender.",
   "type": "module",
   "homepage": "https://github.com/kensakurai/ts-content-based-recommender",
